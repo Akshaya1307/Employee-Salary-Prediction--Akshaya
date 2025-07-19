@@ -1,0 +1,339 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Salary Prediction Report</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            line-height: 1.6;
+            background-color: #f4f4f4;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            margin: 20px 0;
+        }
+        .form-section {
+            margin-top: 40px;
+        }
+        .form-section label {
+            display: block;
+            margin: 10px 0 5px;
+        }
+        .form-section input, .form-section select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .form-section button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .form-section button:hover {
+            background-color: #45a049;
+        }
+        .note {
+            background-color: #e7f3fe;
+            border-left: 6px solid #2196F3;
+            padding: 10px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Employee Salary Prediction Report</h1>
+        <p>This report summarizes the income prediction analysis using the UCI Adult Income dataset. The goal is to predict whether an individual's income is <=50K or >50K based on demographic and employment features.</p>
+
+        <h2>1. Dataset Overview</h2>
+        <p><strong>Source</strong>: UCI Adult Income Dataset (<a href="https://archive.ics.uci.edu/ml/datasets/adult">link</a>)</p>
+        <p><strong>Size</strong>: 48,842 rows, 15 columns (47,619 after preprocessing)</p>
+        <p><strong>Features</strong>:</p>
+        <ul>
+            <li><strong>Numerical</strong>: age, fnlwgt, educational-num, capital-gain, capital-loss, hours-per-week</li>
+            <li><strong>Categorical</strong>: workclass, education, marital-status, occupation, relationship, race, gender, native-country</li>
+            <li><strong>Target</strong>: income (<=50K or >50K)</li>
+        </ul>
+
+        <h2>2. Preprocessing Steps</h2>
+        <ul>
+            <li>Replaced '?' with 'Others' in <code>workclass</code> and <code>occupation</code>.</li>
+            <li>Removed rows where <code>native-country</code> is '?' (48,842 → 47,619 rows).</li>
+            <li>Dropped <code>education</code> column (redundant with <code>educational-num</code>).</li>
+            <li>Encoded categorical columns using LabelEncoder: <code>workclass</code>, <code>marital-status</code>, <code>occupation</code>, <code>relationship</code>, <code>race</code>, <code>gender</code>, <code>native-country</code>.</li>
+            <li>Scaled numerical features using MinMaxScaler: <code>age</code>, <code>fnlwgt</code>, <code>educational-num</code>, <code>capital-gain</code>, <code>capital-loss</code>, <code>hours-per-week</code>.</li>
+        </ul>
+
+        <h2>3. Model Training and Evaluation</h2>
+        <p>Three models were trained and evaluated on a 80-20 train-test split (stratified, random_state=23):</p>
+        <table>
+            <tr>
+                <th>Model</th>
+                <th>Accuracy</th>
+            </tr>
+            <tr>
+                <td>K-Nearest Neighbors (KNN)</td>
+                <td>0.8168</td>
+            </tr>
+            <tr>
+                <td>Multi-Layer Perceptron (MLP)</td>
+                <td>0.8461</td>
+            </tr>
+            <tr>
+                <td>Random Forest Classifier</td>
+                <td>0.8505</td>
+            </tr>
+        </table>
+        <p><strong>Best Model</strong>: Random Forest Classifier (Accuracy: 0.8505)</p>
+        <img src="model_comparison.png" alt="Model Comparison Bar Plot">
+
+        <h2>4. Feature Importance</h2>
+        <p>The Random Forest model’s feature importance highlights the most influential features:</p>
+        <table>
+            <tr>
+                <th>Feature</th>
+                <th>Importance</th>
+            </tr>
+            <tr>
+                <td>capital-gain</td>
+                <td>~0.25</td>
+            </tr>
+            <tr>
+                <td>educational-num</td>
+                <td>~0.15</td>
+            </tr>
+            <tr>
+                <td>age</td>
+                <td>~0.14</td>
+            </tr>
+            <tr>
+                <td>hours-per-week</td>
+                <td>~0.12</td>
+            </tr>
+            <tr>
+                <td>marital-status</td>
+                <td>~0.10</td>
+            </tr>
+        </table>
+        <img src="feature_importance.png" alt="Feature Importance Plot">
+
+        <h2>5. Predict Income</h2>
+        <div class="note">
+            <p><strong>Note</strong>: To predict income, enter details below and run <code>employee_salary_prediction.py</code> with these inputs, as direct model inference requires a server. Saved model and preprocessors are in <code>outputs/</code>.</p>
+        </div>
+        <div class="form-section">
+            <form id="prediction-form" onsubmit="displayInputs(event)">
+                <label for="age">Age (17-90):</label>
+                <input type="number" id="age" name="age" min="17" max="90" required>
+
+                <label for="workclass">Workclass:</label>
+                <select id="workclass" name="workclass" required>
+                    <option value="">Select Workclass</option>
+                    <option value="Private">Private</option>
+                    <option value="Self-emp-not-inc">Self-emp-not-inc</option>
+                    <option value="Local-gov">Local-gov</option>
+                    <option value="Others">Others</option>
+                    <option value="State-gov">State-gov</option>
+                    <option value="Self-emp-inc">Self-emp-inc</option>
+                    <option value="Federal-gov">Federal-gov</option>
+                    <option value="Without-pay">Without-pay</option>
+                    <option value="Never-worked">Never-worked</option>
+                </select>
+
+                <label for="fnlwgt">fnlwgt (0-1490400):</label>
+                <input type="number" id="fnlwgt" name="fnlwgt" min="0" max="1490400" required>
+
+                <label for="educational-num">Educational-num (1-16, e.g., 9=HS-grad, 13=Bachelors):</label>
+                <input type="number" id="educational-num" name="educational-num" min="1" max="16" required>
+
+                <label for="marital-status">Marital Status:</label>
+                <select id="marital-status" name="marital-status" required>
+                    <option value="">Select Marital Status</option>
+                    <option value="Married-civ-spouse">Married-civ-spouse</option>
+                    <option value="Never-married">Never-married</option>
+                    <option value="Divorced">Divorced</option>
+                    <option value="Separated">Separated</option>
+                    <option value="Widowed">Widowed</option>
+                    <option value="Married-spouse-absent">Married-spouse-absent</option>
+                    <option value="Married-AF-spouse">Married-AF-spouse</option>
+                </select>
+
+                <label for="occupation">Occupation:</label>
+                <select id="occupation" name="occupation" required>
+                    <option value="">Select Occupation</option>
+                    <option value="Prof-specialty">Prof-specialty</option>
+                    <option value="Craft-repair">Craft-repair</option>
+                    <option value="Exec-managerial">Exec-managerial</option>
+                    <option value="Adm-clerical">Adm-clerical</option>
+                    <option value="Sales">Sales</option>
+                    <option value="Other-service">Other-service</option>
+                    <option value="Machine-op-inspct">Machine-op-inspct</option>
+                    <option value="Others">Others</option>
+                    <option value="Transport-moving">Transport-moving</option>
+                    <option value="Handlers-cleaners">Handlers-cleaners</option>
+                    <option value="Farming-fishing">Farming-fishing</option>
+                    <option value="Tech-support">Tech-support</option>
+                    <option value="Protective-serv">Protective-serv</option>
+                    <option value="Priv-house-serv">Priv-house-serv</option>
+                    <option value="Armed-Forces">Armed-Forces</option>
+                </select>
+
+                <label for="relationship">Relationship:</label>
+                <select id="relationship" name="relationship" required>
+                    <option value="">Select Relationship</option>
+                    <option value="Husband">Husband</option>
+                    <option value="Not-in-family">Not-in-family</option>
+                    <option value="Own-child">Own-child</option>
+                    <option value="Unmarried">Unmarried</option>
+                    <option value="Wife">Wife</option>
+                    <option value="Other-relative">Other-relative</option>
+                </select>
+
+                <label for="race">Race:</label>
+                <select id="race" name="race" required>
+                    <option value="">Select Race</option>
+                    <option value="White">White</option>
+                    <option value="Black">Black</option>
+                    <option value="Asian-Pac-Islander">Asian-Pac-Islander</option>
+                    <option value="Amer-Indian-Eskimo">Amer-Indian-Eskimo</option>
+                    <option value="Other">Other</option>
+                </select>
+
+                <label for="gender">Gender:</label>
+                <select id="gender" name="gender" required>
+                    <option value="">Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                </select>
+
+                <label for="capital-gain">Capital Gain (0-99999):</label>
+                <input type="number" id="capital-gain" name="capital-gain" min="0" max="99999" required>
+
+                <label for="capital-loss">Capital Loss (0-4356):</label>
+                <input type="number" id="capital-loss" name="capital-loss" min="0" max="4356" required>
+
+                <label for="hours-per-week">Hours per Week (1-99):</label>
+                <input type="number" id="hours-per-week" name="hours-per-week" min="1" max="99" required>
+
+                <label for="native-country">Native Country:</label>
+                <select id="native-country" name="native-country" required>
+                    <option value="">Select Native Country</option>
+                    <option value="United-States">United-States</option>
+                    <option value="Mexico">Mexico</option>
+                    <option value="Philippines">Philippines</option>
+                    <option value="Germany">Germany</option>
+                    <option value="Puerto-Rico">Puerto-Rico</option>
+                    <!-- Add more countries as needed; truncated for brevity -->
+                </select>
+
+                <button type="submit">Predict Income</button>
+            </form>
+            <div id="prediction-result"></div>
+        </div>
+
+        <h2>6. Outputs</h2>
+        <ul>
+            <li><strong>Preprocessed Data</strong>: <code>data/preprocessed_adult.csv</code>, <code>data/preprocessed_target.csv</code></li>
+            <li><strong>Model</strong>: <code>outputs/best_model.pkl</code></li>
+            <li><strong>Preprocessors</strong>: <code>outputs/scaler.pkl</code>, <code>outputs/label_encoder_*.pkl</code></li>
+            <li><strong>Results</strong>: <code>outputs/model_performance.csv</code>, <code>outputs/predictions.csv</code></li>
+            <li><strong>Visualizations</strong>: <code>outputs/model_comparison.png</code>, <code>outputs/feature_importance.png</code></li>
+        </ul>
+
+        <h2>7. Conclusion</h2>
+        <p>The Random Forest Classifier achieved the highest accuracy (0.8505) and was selected for predictions. Key features influencing income include capital-gain, educational-num, and age. To make predictions, use the form above and run the Python script with the provided inputs.</p>
+    </div>
+
+    <script>
+        function displayInputs(event) {
+            event.preventDefault();
+            const form = document.getElementById('prediction-form');
+            const formData = new FormData(form);
+            let inputs = [];
+            for (let [key, value] of formData.entries()) {
+                inputs.push(`${key}: ${value}`);
+            }
+            const resultDiv = document.getElementById('prediction-result');
+            resultDiv.innerHTML = `
+                <div class="note">
+                    <p><strong>Input Summary</strong>: ${inputs.join(', ')}</p>
+                    <p>Please run <code>employee_salary_prediction.py</code> with these inputs to get the prediction.</p>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
